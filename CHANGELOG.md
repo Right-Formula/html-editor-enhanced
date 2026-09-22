@@ -1,3 +1,13 @@
+## [2.7.1-rf.1] = 2026-09-22 (Right Formula fork)
+* Compile under `flutter build web --wasm`: `dart:html` replaced by `package:web` + `dart:js_interop`
+  (`lib/src/web_messages.dart`); conditional imports select the web implementation with
+  `dart.library.js_interop`, which is true under dart2js and dart2wasm (`dart.library.html` is false under wasm)
+* Drop `flutter_keyboard_visibility` — its web endpoint imports `dart:html` and fails every wasm build that
+  depends on this package; the mobile editor now resets its height from the view insets via
+  `WidgetsBindingObserver.didChangeMetrics`
+* `file_picker` ^13 (static `FilePicker.pickFile`, `PlatformFile.readAsBytes()`)
+* SDK floor `>=3.4.0` (`package:web` extension types), Flutter `>=3.22.0`
+
 ## [2.7.1] = 2025-07-12
 * Update dependencies
 
