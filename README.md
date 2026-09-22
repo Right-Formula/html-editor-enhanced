@@ -1,3 +1,30 @@
+> ## Right Formula fork — scope: wasm compatibility only
+>
+> This is a maintained fork of [tneotia/html-editor-enhanced](https://github.com/tneotia/html-editor-enhanced),
+> kept because upstream has been inactive since July 2025 and does not compile under `flutter build web --wasm`
+> (`dart:html` imports). **No feature work happens here.** The only accepted changes are:
+>
+> - migrating `dart:html` / `package:js` usage to `package:web` / `dart:js_interop` so the package compiles to wasm;
+> - bumping `flutter_inappwebview` (or other dependencies) when required for the same reason;
+> - pulling in upstream releases if the author resumes maintenance.
+>
+> Bug fixes and features belong upstream. Open them against tneotia's repo, and cherry-pick here only if they block a wasm build.
+>
+> **Consuming.** Pin to a tag, never a branch, from `banger-events/flutter/pubspec.yaml`:
+>
+> ```yaml
+> html_editor_enhanced:
+>   git:
+>     url: https://github.com/Right-Formula/html-editor-enhanced.git
+>     ref: v2.7.1-rf.1
+> ```
+>
+> Tags follow `v<upstream version>-rf.<n>`. Every RF patch is also raised as a PR against upstream so this fork can be dropped if anyone else picks up maintenance.
+>
+> **Keeping in sync.** `git remote add upstream https://github.com/tneotia/html-editor-enhanced.git && git fetch upstream` then rebase the `rf-*` commits onto `upstream/master`.
+>
+> Original README follows.
+
 # Flutter Html Editor - Enhanced
 [![pub package](https://img.shields.io/pub/v/html_editor_enhanced.svg)](https://pub.dev/packages/html_editor_enhanced)
 
