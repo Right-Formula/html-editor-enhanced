@@ -1,14 +1,13 @@
-export 'dart:html';
-
 import 'dart:convert';
+import 'dart:js_interop';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:html_editor_enhanced/html_editor.dart';
+import 'package:html_editor_enhanced/src/web_messages.dart';
 import 'package:html_editor_enhanced/utils/utils.dart';
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html;
 import 'package:html_editor_enhanced/utils/shims/dart_ui.dart' as ui;
+import 'package:web/web.dart' as web;
 
 /// The HTML Editor widget itself, for web (uses IFrameElement)
 class HtmlEditorWidget extends StatefulWidget {
@@ -113,8 +112,7 @@ class _HtmlEditorWidgetWebState extends State<HtmlEditorWidget> {
             },
           ''';
         if (p.onSelect != null) {
-          html.window.onMessage.listen((event) {
-            var data = json.decode(event.data);
+          editorMessages.listen((data) {
             if (data['type'] != null &&
                 data['type'].contains('toDart:') &&
                 data['view'] == createdViewId &&
@@ -462,74 +460,72 @@ class _HtmlEditorWidgetWebState extends State<HtmlEditorWidget> {
         .replaceFirst('"summernote-lite.min.js"',
             '"assets/packages/html_editor_enhanced/assets/summernote-lite.min.js"');
     if (widget.callbacks != null) addJSListener(widget.callbacks!);
-    final iframe = html.IFrameElement()
+    final iframe = web.HTMLIFrameElement()
       ..width = MediaQuery.of(widget.initBC).size.width.toString() //'800'
       ..height = widget.htmlEditorOptions.autoAdjustHeight
           ? actualHeight.toString()
           : widget.otherOptions.height.toString()
-      // ignore: unsafe_html, necessary to load HTML string
-      ..srcdoc = htmlString
+      ..srcdoc = htmlString.toJS
       ..style.border = 'none'
-      ..style.overflow = 'hidden'
-      ..onLoad.listen((event) async {
-        if (widget.htmlEditorOptions.disabled && !alreadyDisabled) {
-          widget.controller.disable();
-          alreadyDisabled = true;
-        }
-        if (widget.callbacks != null && widget.callbacks!.onInit != null) {
-          widget.callbacks!.onInit!.call();
-        }
-        if (widget.htmlEditorOptions.initialText != null) {
-          widget.controller.setText(widget.htmlEditorOptions.initialText!);
-        }
-        var data = <String, Object>{'type': 'toIframe: getHeight'};
-        data['view'] = createdViewId;
-        var data2 = <String, Object>{'type': 'toIframe: setInputType'};
-        data2['view'] = createdViewId;
-        final jsonEncoder = JsonEncoder();
-        var jsonStr = jsonEncoder.convert(data);
-        var jsonStr2 = jsonEncoder.convert(data2);
-        html.window.onMessage.listen((event) {
-          var data = json.decode(event.data);
-          if (data['type'] != null &&
-              data['type'].contains('toDart: htmlHeight') &&
-              data['view'] == createdViewId &&
-              widget.htmlEditorOptions.autoAdjustHeight) {
-            final docHeight = data['height'] ?? actualHeight;
-            if ((docHeight != null && docHeight != actualHeight) &&
-                mounted &&
-                docHeight > 0) {
-              setState(mounted, this.setState, () {
-                actualHeight =
-                    docHeight + (toolbarKey.currentContext?.size?.height ?? 0);
-              });
-            }
+      ..style.overflow = 'hidden';
+    web.EventStreamProviders.loadEvent.forTarget(iframe).listen((event) async {
+      if (widget.htmlEditorOptions.disabled && !alreadyDisabled) {
+        widget.controller.disable();
+        alreadyDisabled = true;
+      }
+      if (widget.callbacks != null && widget.callbacks!.onInit != null) {
+        widget.callbacks!.onInit!.call();
+      }
+      if (widget.htmlEditorOptions.initialText != null) {
+        widget.controller.setText(widget.htmlEditorOptions.initialText!);
+      }
+      var data = <String, Object>{'type': 'toIframe: getHeight'};
+      data['view'] = createdViewId;
+      var data2 = <String, Object>{'type': 'toIframe: setInputType'};
+      data2['view'] = createdViewId;
+      final jsonEncoder = JsonEncoder();
+      var jsonStr = jsonEncoder.convert(data);
+      var jsonStr2 = jsonEncoder.convert(data2);
+      editorMessages.listen((data) {
+        if (data['type'] != null &&
+            data['type'].contains('toDart: htmlHeight') &&
+            data['view'] == createdViewId &&
+            widget.htmlEditorOptions.autoAdjustHeight) {
+          final docHeight = data['height'] ?? actualHeight;
+          if ((docHeight != null && docHeight != actualHeight) &&
+              mounted &&
+              docHeight > 0) {
+            setState(mounted, this.setState, () {
+              actualHeight =
+                  docHeight + (toolbarKey.currentContext?.size?.height ?? 0);
+            });
           }
-          if (data['type'] != null &&
-              data['type'].contains('toDart: onChangeContent') &&
-              data['view'] == createdViewId) {
-            if (widget.callbacks != null &&
-                widget.callbacks!.onChangeContent != null) {
-              widget.callbacks!.onChangeContent!.call(data['contents']);
-            }
-            if (widget.htmlEditorOptions.shouldEnsureVisible) {
-              Scrollable.of(context).position.ensureVisible(
-                  context.findRenderObject()!,
-                  duration: const Duration(milliseconds: 100),
-                  curve: Curves.easeIn);
-            }
+        }
+        if (data['type'] != null &&
+            data['type'].contains('toDart: onChangeContent') &&
+            data['view'] == createdViewId) {
+          if (widget.callbacks != null &&
+              widget.callbacks!.onChangeContent != null) {
+            widget.callbacks!.onChangeContent!.call(data['contents']);
           }
-          if (data['type'] != null &&
-              data['type'].contains('toDart: updateToolbar') &&
-              data['view'] == createdViewId) {
-            if (widget.controller.toolbar != null) {
-              widget.controller.toolbar!.updateToolbar(data);
-            }
+          if (widget.htmlEditorOptions.shouldEnsureVisible) {
+            Scrollable.of(context).position.ensureVisible(
+                context.findRenderObject()!,
+                duration: const Duration(milliseconds: 100),
+                curve: Curves.easeIn);
           }
-        });
-        html.window.postMessage(jsonStr, '*');
-        html.window.postMessage(jsonStr2, '*');
+        }
+        if (data['type'] != null &&
+            data['type'].contains('toDart: updateToolbar') &&
+            data['view'] == createdViewId) {
+          if (widget.controller.toolbar != null) {
+            widget.controller.toolbar!.updateToolbar(data);
+          }
+        }
       });
+      postEditorMessage(jsonStr);
+      postEditorMessage(jsonStr2);
+    });
     ui.platformViewRegistry
         .registerViewFactory(createdViewId, (int viewId) => iframe);
     setState(mounted, this.setState, () {
@@ -695,8 +691,7 @@ class _HtmlEditorWidgetWebState extends State<HtmlEditorWidget> {
 
   /// Adds an event listener to check when a callback is fired
   void addJSListener(Callbacks c) {
-    html.window.onMessage.listen((event) {
-      var data = json.decode(event.data);
+    editorMessages.listen((data) {
       if (data['type'] != null &&
           data['type'].contains('toDart:') &&
           data['view'] == createdViewId) {

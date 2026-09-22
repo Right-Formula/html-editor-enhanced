@@ -84,8 +84,7 @@ class _HtmlEditorExampleState extends State<HtmlEditorExample> {
                   },
                   onDropdownChanged: (DropdownType type, dynamic changed,
                       Function(dynamic)? updateSelectedItem) {
-                    print(
-                        "dropdown '${type.name}' changed to $changed");
+                    print("dropdown '${type.name}' changed to $changed");
                     return true;
                   },
                   mediaLinkInsertInterceptor:
@@ -96,7 +95,7 @@ class _HtmlEditorExampleState extends State<HtmlEditorExample> {
                   mediaUploadInterceptor:
                       (PlatformFile file, InsertFileType type) async {
                     print(file.name); //filename
-                    print(file.size); //size in bytes
+                    print(file.lengthSync()); //size in bytes
                     print(file.extension); //file extension (eg jpeg or mp4)
                     return true;
                   },

@@ -7,7 +7,6 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import 'package:flutter_keyboard_visibility/flutter_keyboard_visibility.dart';
 import 'package:html_editor_enhanced/html_editor.dart'
     hide NavigationActionPolicy, UserScript, ContextMenu;
 import 'package:html_editor_enhanced/utils/utils.dart';
@@ -39,7 +38,8 @@ class HtmlEditorWidget extends StatefulWidget {
 /// State for the mobile Html editor widget
 ///
 /// A stateful widget is necessary here to allow the height to dynamically adjust.
-class _HtmlEditorWidgetMobileState extends State<HtmlEditorWidget> {
+class _HtmlEditorWidgetMobileState extends State<HtmlEditorWidget>
+    with WidgetsBindingObserver {
   /// Tracks whether the callbacks were initialized or not to prevent re-initializing them
   bool callbacksInitialized = false;
 
@@ -64,8 +64,15 @@ class _HtmlEditorWidgetMobileState extends State<HtmlEditorWidget> {
   /// the editor is focused much after its visibility changes
   double? cachedVisibleDecimal;
 
+  /// Whether the editor has loaded and should reset its height when the
+  /// keyboard is dismissed (back on Android, "done" on iOS). Read from the
+  /// view insets in [didChangeMetrics], which needs no keyboard plugin.
+  bool watchKeyboard = false;
+  bool keyboardVisible = false;
+
   @override
   void initState() {
+    WidgetsBinding.instance.addObserver(this);
     docHeight = widget.otherOptions.height;
     key = getRandString(10);
     if (widget.htmlEditorOptions.filePath != null) {
@@ -81,8 +88,20 @@ class _HtmlEditorWidgetMobileState extends State<HtmlEditorWidget> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     visibleStream.close();
     super.dispose();
+  }
+
+  @override
+  void didChangeMetrics() {
+    if (!watchKeyboard || !mounted) return;
+    final visible = View.of(context).viewInsets.bottom > 0;
+    if (keyboardVisible && !visible) {
+      widget.controller.editorController?.clearFocus();
+      resetHeight();
+    }
+    keyboardVisible = visible;
   }
 
   /// resets the height of the editor to the original height
@@ -147,8 +166,8 @@ class _HtmlEditorWidgetMobileState extends State<HtmlEditorWidget> {
                     javaScriptEnabled: true,
                     transparentBackground: true,
                     useShouldOverrideUrlLoading: true,
-                    useHybridComposition: widget.htmlEditorOptions
-                        .androidUseHybridComposition,
+                    useHybridComposition:
+                        widget.htmlEditorOptions.androidUseHybridComposition,
                     loadWithOverviewMode: true,
                   ),
                   initialUserScripts:
@@ -213,7 +232,9 @@ class _HtmlEditorWidgetMobileState extends State<HtmlEditorWidget> {
                         });
                         await setHeightJS();
                       }
-                      var visibleDecimal = await visibleStream.stream.firstWhere((_) => !visibleStream.isClosed, orElse: () => 0);
+                      var visibleDecimal = await visibleStream.stream
+                          .firstWhere((_) => !visibleStream.isClosed,
+                              orElse: () => 0);
                       var newHeight = widget.otherOptions.height;
                       if (visibleDecimal > 0.1) {
                         this.setState(() {
@@ -486,15 +507,7 @@ class _HtmlEditorWidgetMobileState extends State<HtmlEditorWidget> {
                       }
                       //reset the editor's height if the keyboard disappears at any point
                       if (widget.htmlEditorOptions.adjustHeightForKeyboard) {
-                        var keyboardVisibilityController =
-                            KeyboardVisibilityController();
-                        keyboardVisibilityController.onChange
-                            .listen((bool visible) {
-                          if (!visible && mounted) {
-                            controller.clearFocus();
-                            resetHeight();
-                          }
-                        });
+                        watchKeyboard = true;
                       }
                       widget.controller.editorController!.addJavaScriptHandler(
                           handlerName: 'totalChars',

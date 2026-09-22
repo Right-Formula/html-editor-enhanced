@@ -1,11 +1,10 @@
 import 'dart:convert';
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html;
 
 import 'package:flutter/foundation.dart';
 import 'package:html_editor_enhanced/html_editor.dart';
 import 'package:html_editor_enhanced/src/html_editor_controller_unsupported.dart'
     as unsupported;
+import 'package:html_editor_enhanced/src/web_messages.dart';
 import 'package:meta/meta.dart';
 
 /// Controller for web
@@ -55,9 +54,9 @@ class HtmlEditorController extends unsupported.HtmlEditorController {
   @override
   Future<String> getText() async {
     _evaluateJavascriptWeb(data: {'type': 'toIframe: getText'});
-    var e = await html.window.onMessage.firstWhere(
-        (element) => json.decode(element.data)['type'] == 'toDart: getText');
-    String text = json.decode(e.data)['text'];
+    var e = await editorMessages
+        .firstWhere((message) => message['type'] == 'toDart: getText');
+    String text = e['text'];
     if (processOutputHtml &&
         (text.isEmpty ||
             text == '<p></p>' ||
@@ -73,9 +72,9 @@ class HtmlEditorController extends unsupported.HtmlEditorController {
     } else {
       _evaluateJavascriptWeb(data: {'type': 'toIframe: getSelectedText'});
     }
-    var e = await html.window.onMessage.firstWhere((element) =>
-        json.decode(element.data)['type'] == 'toDart: getSelectedText');
-    return json.decode(e.data)['text'];
+    var e = await editorMessages
+        .firstWhere((message) => message['type'] == 'toDart: getSelectedText');
+    return e['text'];
   }
 
   /// Sets the text of the editor. Some pre-processing is applied to convert
@@ -233,9 +232,8 @@ class HtmlEditorController extends unsupported.HtmlEditorController {
       {bool hasReturnValue = false}) async {
     _evaluateJavascriptWeb(data: {'type': 'toIframe: $name'});
     if (hasReturnValue) {
-      var e = await html.window.onMessage.firstWhere(
-          (element) => json.decode(element.data)['type'] == 'toDart: $name');
-      return json.decode(e.data);
+      return editorMessages
+          .firstWhere((message) => message['type'] == 'toDart: $name');
     }
   }
 
@@ -320,7 +318,7 @@ class HtmlEditorController extends unsupported.HtmlEditorController {
       data['view'] = _viewId;
       final jsonEncoder = JsonEncoder();
       var json = jsonEncoder.convert(data);
-      html.window.postMessage(json, '*');
+      postEditorMessage(json);
     } else {
       throw Exception(
           'Non-Flutter Web environment detected, please make sure you are importing package:html_editor_enhanced/html_editor.dart');
